@@ -27,7 +27,7 @@ CONF_STATION_ID = "station_id"
 DEFAULT_ADD_SENSOR = False
 DEFAULT_FORECAST_HOURS = 48
 DEFAULT_NAME = "WeatherFlow Forecast"
-DOMAIN = "weatherflow_forecast"
+DOMAIN = "weatherflow_forecast_alt"
 
 MANUFACTURER = "WeatherFlow"
 MODEL = "Rest API"

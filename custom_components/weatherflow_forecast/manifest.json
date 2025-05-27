@@ -1,5 +1,5 @@
 {
-    "domain": "weatherflow_forecast",
+    "domain": "weatherflow_forecast_alt",
     "name": "WeatherFlow Forecast",
     "codeowners": [
         "@briis"
