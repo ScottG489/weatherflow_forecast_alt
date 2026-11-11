@@ -1,89 +1,89 @@
-# WeatherFlow Forecast and Sensor integration for Home Assistant
-Home Assistant integration for WeatherFlow Cloud Based Data using the REST API
+# WeatherFlow Forecast and Sensor integration (alternate fork)
 
-[![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
-[![hacs][hacsbadge]][hacs]
-![Project Maintenance][maintenance-shield]
-[![Community Forum][forum-shield]][forum]
+This fork provides Tempest current conditions, daily/hourly forecasts and optional
+station sensors in Home Assistant. Minimum supported Home Assistant: **2025.3.4**.
 
-<a href="https://www.buymeacoffee.com/briis" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 145px !important;" ></a>
+## Authentication
 
-<p align="center">
-  <img width="384" height="128" src="https://github.com/briis/weatherflow_forecast/blob/main/images/logo@2x.png?raw=true">
-</p>
+Choose **Public station** and enter the number from a public station URL such as
+`https://tempestwx.com/station/95467`. Leave the personal-token field empty.
+The integration obtains and renews the anonymous session used by Tempest's map.
 
-This integration adds support for retrieving the Forecast, Current condition and optionally realtime data from [WeatherFlow](https://shop.weatherflow.com/products/tempest). It replaces [WeatherFlow Weather for Home Assistant](https://github.com/briis/hass-weatherflow) that will soon be deprecated.
+For a station you own, choose **Personal access token** and generate a token under
+[Tempest Settings → Data Authorizations](https://tempestwx.com/settings/tokens).
+This mode uses the documented owner API and does not require anonymous sessions.
 
-For this integration you **must own a WeatherFlow weather station** and you must create a **personal API Token** that work with your weather station. [See this link](https://weatherflow.github.io/Tempest/api/) for a description on how to retrieve the API Token.
-**Note**: There are two types of authorization *oAuth* and *Personal API Token*. Make sure you use the later.
+Public-map access depends on Tempest's website authentication and may change.
+See Tempest's [remote data access policy](https://weatherflow.github.io/Tempest/api/remote-developer-policy.html)
+for their supported third-party access options.
 
-**Note**: All development is done using a *TEMPEST* device, so no testing of the code is done using the old AIR and SKY devices. It does not mean that it will not work with that setup, but some sensors will not be available and no testing is done.
-Please do not add ask me to implement special features for these device, as it will not happen. This is open source, so you are welcome to create your own fork and implement as desired.
+## Installation
 
-#### This integration will set up the following platforms.
+In HACS / Marketplace, add `ScottG489/weatherflow_forecast_alt` as a custom
+integration repository and install it. This fork is separate from the upstream
+WeatherFlow Forecast integration.
 
-Platform | Description
--- | --
-`weather` | A Home Assistant `weather` entity, with current data, daily- and hourly forecast data.
-`sensor` | A Home Assistant `sensor` entity, with all available sensor from the API, plus a few local calculated.
-`binary_sensor` | A Home Assistant `binary_sensor` entity, with few local calculated binary sensors.
+For manual installation, copy `custom_components/weatherflow_forecast_alt` from
+this repository into your Home Assistant configuration's `custom_components`
+directory. The installed directory must be named `weatherflow_forecast_alt`.
 
-Minimum required version of Home Assistant is **2023.9.0** as this integration uses the new Weather entity forecast types and it does **not** create Forecast Attributes.
+Restart Home Assistant after installing or updating integration files, then open
+**Settings → Devices & services → Add integration → WeatherFlow Forecast**.
 
-### Removal of the Public Developer Key
+## Upgrading from this fork's previous release
 
-Since the release of the WeatherFlow API, there has been a generic *Developer Key* that would work to retrieve data from all Public Stations. **As of March, 27th 2025, this key will no longer work**. Please see [this post](https://community.tempest.earth/t/eol-for-the-shared-api-key-old-option/26923) by WeatherFlow. So if you don't own a WeatherFlow station, you will no longer be able to get an API Key, and this Integration will not work for you.
+Entries using the known map key migrate automatically to Public station mode.
+Their station IDs, entity IDs, forecast hours and sensor settings are preserved.
+The migration also uses credentials previously edited through the options form.
 
-## Installation through HACS (Recommended Method)
+The source directory now matches the existing `weatherflow_forecast_alt` domain.
+If you installed the fork manually under a different directory, place the updated
+files under `custom_components/weatherflow_forecast_alt` before restarting.
+Keep a copy of your previous integration files for rollback. Version 2 entries
+are not compatible with the old code; rollback after migration requires restoring
+the previous config entry from a Home Assistant backup as well as the old files.
 
-This Integration is part of the default HACS store. Search for WeatherFlow Forecast under Integrations and install from there. You can also download using this My link:
+## Settings
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=briis&repository=weatherflow_forecast&category=integration)
+| Setting | Purpose |
+| --- | --- |
+| Station ID | Station number from its Tempest URL. |
+| Authentication | Public station or Personal access token. |
+| Personal access token | Required only in personal-token mode. |
+| Forecast hours | 12–96 hours; default 48. |
+| Add sensors | Include station sensors and binary sensors. |
 
-After the installation of the files, you must restart Home Assistant, or else you will not be able to add WeatherFlow Forecast from the Integration Page.
+Use the integration's configuration options to change credentials or settings.
+Credentials are validated before saving. Advanced options expose public application
+and Firebase key overrides if Tempest changes its public configuration.
 
-Once restarted, you can go to "Configuration" -> "Integrations" click "+" and search for "WeatherFlow Forecast" or use this My link:
+Anonymous identities are shared across stations. Only refresh tokens are persisted,
+using Home Assistant's private storage API; expiring ID tokens stay in memory.
+A reload or restart reuses the saved identity. Public authentication failures retry
+with backoff and do not ask you to replace a personal token.
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=weatherflow_forecast)
+## Development and validation
 
-If you are not familiar with HACS, or haven't installed it, I would recommend to [look through the HACS documentation](https://hacs.xyz/), before continuing. Even though you can install the Integration manually, I would recommend using HACS, as you would always be reminded when a new release is published.
+The library lives in [ScottG489/pyweatherflow_forecast_alt](https://github.com/ScottG489/pyweatherflow_forecast_alt).
+The manifest pins an immutable library revision.
 
-## Manual Installation
+```sh
+python -m pip install homeassistant==2026.11.1 pytest pytest-asyncio ruff
+# Install the requirement from custom_components/weatherflow_forecast_alt/manifest.json.
+python -m pytest
+scripts/lint
+python scripts/live_validate.py
+```
 
-1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
-2. If you do not have a `custom_components` directory (folder) there, you need to create it.
-3. In the `custom_components` directory (folder) create a new folder called `weatherflow_forecast`.
-4. Download _all_ the files from the `custom_components/weatherflow_forecast/` directory (folder) in this repository.
-5. Place the files you downloaded in the new directory (folder) you created.
-6. Restart Home Assistant
-7. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "WeatherFlow Forecast" or use this My link:
+The tests exercise authentication migration, durable credential storage, setup and
+options validation, and coordinator error handling. The explicit live validation
+script uses a temporary Home Assistant configuration to check migration, entities,
+forecast services, reload and restart. It never loads your installed configuration.
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=weatherflow_forecast)
+The library also provides an optional 65-minute live authentication soak test.
+Public sessions and live requests are created only when those scripts are run.
 
-## Configuration
-
-To add WeatherFlow Forecast to your installation, do the following:
-
-- Go to Configuration and Integrations
-- Click the + ADD INTEGRATION button in the lower right corner.
-- Search for *WeatherFlow Forecast** and click the integration.
-- When loaded, there will be a configuration box, where you must enter:
-
-  | Parameter | Required | Default Value | Description |
-  | --------- | -------- | ------------- | ----------- |
-  | `Station ID` | Yes | None | Each WeatherFlow Station you setup, will get a unique Station ID, this id is needed during configuration. To get your Station ID, [login with your account](https://tempestwx.com/settings/stations/), select the station on the list, and then click *Status*. Here you will find your Station ID. |
-  | `API Token` | Yes | None | The WeatherFlow REST API requires a Token. Please [login with your account](https://tempestwx.com/settings/tokens) and create the token. Go to Settings and choose Data Authorizations (almost at the bottom). Create a personal access token and use that as Token (API key). |
-  | `Forecast Hours` | No | 48 | Adjust the number of hours you want returned for the hourly forecast. Min is 12, max is 96 hours. |
-  | `Add Sensors` | No | False | Mark the box if you want to have all the available sensors from the Rest API add to Home Assistant |
-
-- Click on SUBMIT to save your data. If all goes well you should now have a new Weather entity with data from WeatherFlow Forecast
-- **Please Note**: The Token you create here will ONLY work with Stations that are registered under the same Login.
-
-
-You can configure more than 1 instance of the Integration by using a different Station ID.
-
+Based on [briis/weatherflow_forecast](https://github.com/briis/weatherflow_forecast).
 
 ## Available Sensors
 

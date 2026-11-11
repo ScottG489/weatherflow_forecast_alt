@@ -1,3 +1,12 @@
+## Release 1.1.0
+
+* Restore public station access with renewable anonymous map sessions.
+* Persist and share refresh credentials; bound retries and honor rate limits.
+* Migrate existing map-key entries while preserving entity IDs and settings.
+* Add explicit personal-token mode and validated credential editing/reauthentication.
+* Correct the package directory to match the weatherflow_forecast_alt domain.
+* Pin the library revision and add lifecycle/HA integration tests.
+
 ## Release 1.0.13
 
 Date: `2025-01-14`

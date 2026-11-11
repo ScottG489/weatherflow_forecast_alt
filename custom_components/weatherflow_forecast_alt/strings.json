@@ -1,24 +1,44 @@
 {
     "config": {
         "abort": {
-            "unique_id": "WeatherFlow Location has already been configured."
+            "already_configured": "This station has already been configured.",
+            "reauth_successful": "Authentication updated successfully."
         },
         "error": {
             "wrong_station_id": "The Station ID entered is not correct. Check that you are not using Device ID.",
             "server_error": "WeatherFlow servers encountered an unexpected error",
             "wrong_token": "The API Token is incorrect or does not match the Station ID.",
             "offline_error": "Station either is offline or no recent observations. Check station status or remove Sensors and try again.",
-            "bad_request": "An unknown error occurred when retrieving data."
+            "bad_request": "An unknown error occurred when retrieving data.",
+            "public_auth_error": "Unable to authenticate the public map session. Check the public application settings or try again later.",
+            "token_required": "Enter a personal access token."
         },
         "step": {
             "user": {
-                "description": "Set up a WeatherFlow Forecast Station",
+                "description": "Choose Public station to use a public station ID, or Personal access token for a station you own.",
                 "title": "WeatherFlow Forecast",
                 "data": {
                     "station_id": "Station Id",
-                    "api_token": "Personal Api Token",
+                    "api_token": "Personal access token (personal-token mode only)",
                     "forecast_hours": "Hours to show in Hourly Forecast",
-                    "add_sensors": "Add sensors from the Weather Station"
+                    "add_sensors": "Add sensors from the Weather Station",
+                    "auth_mode": "Authentication"
+                },
+                "sections": {
+                    "public_application": {
+                        "name": "Public application settings",
+                        "data": {
+                            "map_api_key": "Public map application key",
+                            "firebase_api_key": "Public Firebase application key"
+                        }
+                    }
+                }
+            },
+            "reauth_confirm": {
+                "title": "Update personal access token",
+                "description": "Enter a replacement token for this station.",
+                "data": {
+                    "api_token": "Personal access token"
                 }
             }
         }
@@ -27,11 +47,31 @@
         "step": {
             "init": {
                 "data": {
-                    "api_token": "Personal Api Token",
+                    "api_token": "Personal access token (personal-token mode only)",
                     "forecast_hours": "Hours to show in Hourly Forecast",
-                    "add_sensors": "Add sensors from the Weather Station"
+                    "add_sensors": "Add sensors from the Weather Station",
+                    "auth_mode": "Authentication"
+                },
+                "description": "Public station mode does not require a personal access token.",
+                "sections": {
+                    "public_application": {
+                        "name": "Public application settings",
+                        "data": {
+                            "map_api_key": "Public map application key",
+                            "firebase_api_key": "Public Firebase application key"
+                        }
+                    }
                 }
             }
+        },
+        "error": {
+            "wrong_station_id": "The Station ID entered is not correct. Check that you are not using Device ID.",
+            "server_error": "WeatherFlow servers encountered an unexpected error",
+            "wrong_token": "The API Token is incorrect or does not match the Station ID.",
+            "offline_error": "Station either is offline or no recent observations. Check station status or remove Sensors and try again.",
+            "bad_request": "An unknown error occurred when retrieving data.",
+            "public_auth_error": "Unable to authenticate the public map session. Check the public application settings or try again later.",
+            "token_required": "Enter a personal access token."
         }
     },
     "entity": {

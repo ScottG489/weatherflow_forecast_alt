@@ -476,8 +476,7 @@ class WeatherFlowSensor(CoordinatorEntity[DataUpdateCoordinator], SensorEntity):
             manufacturer=MANUFACTURER,
             model=MODEL,
             name=f"{self._config.data[CONF_NAME]} Sensors",
-            configuration_url=f"https://tempestwx.com/station/{
-                self._config.data[CONF_STATION_ID]}/grid",
+            configuration_url=f"https://tempestwx.com/station/{self._config.data[CONF_STATION_ID]}/grid",
             hw_version=f"FW V{self._hw_version}",
         )
         self._attr_attribution = ATTR_ATTRIBUTION

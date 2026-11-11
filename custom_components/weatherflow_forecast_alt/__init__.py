@@ -8,26 +8,26 @@ from types import MappingProxyType
 from typing import Any, Self
 
 from pyweatherflow_forecast import (
+    AUTH_PERSONAL_TOKEN,
     WeatherFlow,
     WeatherFlowForecastData,
     WeatherFlowForecastDaily,
     WeatherFlowForecastHourly,
     WeatherFlowForecastUnauthorized,
-    WeatherFlowForecastBadRequest,
     WeatherFlowForecastInternalServerError,
-    WeatherFlowForecastWongStationId,
     WeatherFlowSensorData,
     WeatherFlowStationData,
 )
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError, ConfigEntryNotReady, Unauthorized
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.loader import async_get_integration
+
+from .auth import async_create_weather, normalize_auth
 
 from .const import (
     DEFAULT_ADD_SENSOR,
@@ -35,6 +35,7 @@ from .const import (
     DOMAIN,
     CONF_ADD_SENSORS,
     CONF_API_TOKEN,
+    CONF_AUTH_MODE,
     CONF_FORECAST_HOURS,
     CONF_STATION_ID,
     STARTUP,
@@ -70,10 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     coordinator = WeatherFlowForecastDataUpdateCoordinator(
         hass, config_entry, add_sensors, forecast_hours)
-    if ConfigEntryState == ConfigEntryState.SETUP_IN_PROGRESS:
-        await coordinator.async_config_entry_first_refresh()
-    else:
-        await coordinator.async_refresh()
+    await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][config_entry.entry_id] = coordinator
@@ -94,7 +92,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         config_entry, PLATFORMS
     )
 
-    hass.data[DOMAIN].pop(config_entry.entry_id)
+    if unload_ok:
+        hass.data[DOMAIN].pop(config_entry.entry_id, None)
 
     return unload_ok
 
@@ -117,9 +116,6 @@ async def cleanup_old_device(hass: HomeAssistant, station_id) -> None:
         _LOGGER.debug("Removing deselected sensors: %s", device.name)
         device_reg.async_remove_device(device.id)
 
-class CannotConnect(HomeAssistantError):
-    """Unable to connect to the web site."""
-
 class WeatherFlowForecastDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching WeatherFlow data."""
 
@@ -127,9 +123,6 @@ class WeatherFlowForecastDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize global WeatherFlow forecast data updater."""
         self.weather = WeatherFlowForecastWeatherData(
             hass, config_entry.data, add_sensors, forecast_hours)
-        self.weather.initialize_data()
-        self.hass = hass
-        self.config_entry = config_entry
         self.add_sensors = add_sensors
         self.forecast_hours = forecast_hours
 
@@ -140,10 +133,20 @@ class WeatherFlowForecastDataUpdateCoordinator(DataUpdateCoordinator):
 
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval, config_entry=config_entry)
 
+    async def _async_setup(self) -> None:
+        """Load shared authentication before the first update."""
+        await self.weather.async_initialize_data()
+
     async def _async_update_data(self) -> WeatherFlowForecastWeatherData:
-        """Fetch data from WeatherFlow Forecast."""
+        """Fetch data and distinguish personal credentials from public outages."""
         try:
             return await self.weather.fetch_data()
+        except WeatherFlowForecastUnauthorized as err:
+            if self.config_entry.data.get(CONF_AUTH_MODE) == AUTH_PERSONAL_TOKEN:
+                raise ConfigEntryAuthFailed(str(err)) from err
+            raise UpdateFailed(f"Public map authentication failed: {err}") from err
+        except WeatherFlowForecastInternalServerError as err:
+            raise UpdateFailed(str(err)) from err
         except Exception as err:
             raise UpdateFailed(f"Update failed: {err}") from err
 
@@ -164,61 +167,34 @@ class WeatherFlowForecastWeatherData:
         self.sensor_data: WeatherFlowSensorData = {}
         self.station_data: WeatherFlowStationData = {}
 
-    def initialize_data(self) -> bool:
-        """Establish connection to API."""
-
-        self._weather_data = WeatherFlow(
-            str(self._config[CONF_STATION_ID]), self._config[CONF_API_TOKEN], elevation=self.hass.config.elevation, session=async_get_clientsession(self.hass), forecast_hours=self._forecast_hours)
-
-        return True
+    async def async_initialize_data(self) -> None:
+        """Load shared authentication and construct the API client."""
+        self._weather_data = await async_create_weather(
+            self.hass, self._config, forecast_hours=self._forecast_hours
+        )
 
     async def fetch_data(self) -> Self:
-        """Fetch data from API - (current weather and forecast)."""
-
-        try:
-            resp: WeatherFlowForecastData = await self._weather_data.async_get_forecast()
-        except WeatherFlowForecastWongStationId as unauthorized:
-            _LOGGER.debug(unauthorized)
-            raise Unauthorized from unauthorized
-        except WeatherFlowForecastBadRequest as err:
-            _LOGGER.debug(err)
-            return False
-        except WeatherFlowForecastUnauthorized as unauthorized:
-            _LOGGER.debug(unauthorized)
-            raise Unauthorized from unauthorized
-        except WeatherFlowForecastInternalServerError as notreadyerror:
-            _LOGGER.debug(notreadyerror)
-            raise ConfigEntryNotReady from notreadyerror
-
-        if not resp:
-            raise CannotConnect()
-        self.current_weather_data = resp
-        self.daily_forecast = resp.forecast_daily
-        self.hourly_forecast = resp.forecast_hourly
-
+        """Fetch a complete update before replacing the last successful data."""
+        forecast = await self._weather_data.async_get_forecast()
         if self._add_sensors:
-            try:
-                resp: WeatherFlowSensorData = await self._weather_data.async_fetch_sensor_data()
-                station_info: WeatherFlowStationData = await self._weather_data.async_get_station()
-            except WeatherFlowForecastWongStationId as unauthorized:
-                _LOGGER.debug(unauthorized)
-                raise Unauthorized from unauthorized
-            except WeatherFlowForecastBadRequest as err:
-                _LOGGER.debug(err)
-                return False
-            except WeatherFlowForecastUnauthorized as unauthorized:
-                _LOGGER.debug(unauthorized)
-                raise Unauthorized from unauthorized
-            except WeatherFlowForecastInternalServerError as notreadyerror:
-                _LOGGER.debug(notreadyerror)
-                raise ConfigEntryNotReady from notreadyerror
-
-            if not resp or not station_info:
-                raise CannotConnect()
-            self.sensor_data = resp
-            self.station_data = station_info
-            if not self.sensor_data.data_available:
-                _LOGGER.warning(
-                    "Weather Station either is offline or no recent observations from station. Remove Sensors to avoid this warning.")
-
+            sensors = await self._weather_data.async_fetch_sensor_data()
+            station = await self._weather_data.async_get_station()
+            self.sensor_data = sensors
+            self.station_data = station
+            if not sensors.data_available:
+                _LOGGER.warning("Weather station has no recent observations")
+        self.current_weather_data = forecast
+        self.daily_forecast = forecast.forecast_daily
+        self.hourly_forecast = forecast.forecast_hourly
         return self
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate credentials without changing entity identities or station settings."""
+    if config_entry.version > 2:
+        return False
+    if config_entry.version == 1:
+        data = normalize_auth(config_entry.data, config_entry.options)
+        options = {key: value for key, value in config_entry.options.items() if key != CONF_API_TOKEN}
+        hass.config_entries.async_update_entry(config_entry, data=data, options=options, version=2)
+    return True

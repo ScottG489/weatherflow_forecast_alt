@@ -1,25 +1,18 @@
-name: "Release"
-
+name: Release validation
 on:
   release:
-    types:
-      - "published"
-
-permissions: {}
-
+    types: [published]
+permissions:
+  contents: read
 jobs:
-  release:
-    name: "Release"
-    runs-on: "ubuntu-latest"
-    permissions:
-      contents: write
+  version:
+    runs-on: ubuntu-latest
     steps:
-      - name: "Checkout the repository"
-        uses: "actions/checkout@v4.2.2"
-
-      - name: "Adjust version number"
-        shell: "bash"
-        run: |
-          yq -i -o json '.version="${{ github.event.release.tag_name }}"' \
-            "${{ github.workspace }}/custom_components/weatherflow_forecast/manifest.json"
-
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify committed manifest version matches release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: python -c "import json, os; version=json.load(open('custom_components/weatherflow_forecast_alt/manifest.json'))['version']; assert version == os.environ['RELEASE_TAG'].removeprefix('v'), (version, os.environ['RELEASE_TAG'])"

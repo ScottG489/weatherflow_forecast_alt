@@ -1,0 +1,16 @@
+{
+    "domain": "weatherflow_forecast_alt",
+    "name": "WeatherFlow Forecast",
+    "codeowners": [
+        "@ScottG489"
+    ],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/ScottG489/weatherflow_forecast_alt",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/ScottG489/weatherflow_forecast_alt/issues",
+    "requirements": [
+        "pyweatherflow-forecast-alt@git+https://github.com/ScottG489/pyweatherflow_forecast_alt.git@8034a97811213662549b33c9c4e7158849190567"
+    ],
+    "version": "1.1.0"
+}
